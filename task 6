@@ -1,0 +1,91 @@
+import warnings
+import tensorflow as tf
+warnings.filterwarnings('ignore')
+tf.compat.v1.disable_eager_execution()
+from matplotlib import pyplot as plt
+from art.estimators.classification import KerasClassifier
+from art.attacks.evasion import FastGradientMethod, CarliniLInfMethod
+from art.attacks.evasion import DeepFool, SaliencyMapMethod, ProjectedGradientDescent,PixelAttack
+import keras
+import time
+from tensorflow import keras
+from keras.models import Sequential
+from art.config import ART_DATA_PATH
+from art.attacks.evasion import ProjectedGradientDescent
+from art.utils import get_file
+from keras.models import load_model
+import numpy as np
+import tensorflow as tf
+import random as rn
+import os
+
+(x_train, y_train), (x_test, y_test)  = tf.keras.datasets.cifar10.load_data()
+X_train = x_train[:only_data]
+X_test = x_test[:only_test_data]
+Y_train = y_train[:only_data]
+Y_test = y_test[:only_test_data]
+
+X_train = X_train/255
+X_test = X_test/255
+classes_name = ['airplane', 'automobile', 'bird', 'cat', 'deer', 'dog', 'frog', 'horse', 'ship', 'truck']
+def refresh():
+  os.environ['PYTHONHASHSEED']=str(1)
+  np.random.seed(1)
+  rn.seed(1)
+  session_conf = tf.compat.v1.ConfigProto(intra_op_parallelism_threads=1,
+                                          inter_op_parallelism_threads=1)
+  tf.compat.v1.set_random_seed(1)
+  sess = tf.compat.v1.Session(graph=tf.compat.v1.get_default_graph(), config=session_conf)
+  tf.compat.v1.keras.backend.set_session(sess)
+  tf.compat.v1.disable_eager_execution()
+
+refresh()
+model = 0
+seed = 1
+model = tf.keras.models.Sequential()
+model.add(tf.keras.layers.Conv2D(filters=32, kernel_size=(3, 3), padding='same', activation='relu', input_shape = [32, 32, 3], kernel_initializer=keras.initializers.glorot_uniform(seed)))
+model.add(tf.keras.layers.Conv2D(filters=32, kernel_size=(3, 3), padding='same', activation='relu', kernel_initializer=keras.initializers.glorot_uniform(seed)))
+model.add(tf.keras.layers.MaxPool2D(pool_size=(2,2), strides=2, padding='valid'))
+model.add(tf.keras.layers.Dropout(0.5))
+model.add(tf.keras.layers.Flatten())
+model.add(tf.keras.layers.Dense(units = 128, activation='relu', kernel_initializer=keras.initializers.glorot_uniform(seed)))
+model.add(tf.keras.layers.Dense(units=10, activation='softmax', kernel_initializer=keras.initializers.glorot_uniform(seed)))
+model.compile(optimizer='adam', loss='sparse_categorical_crossentropy', metrics=['accuracy'])
+model.summary()
+
+model.fit(X_train, Y_train, epochs = epochs,validation_data=(X_test, Y_test))
+
+loss_test, accuracy_test_1 = model.evaluate(X_test, Y_test)
+
+X2_test, Y2_test = X_test, Y_test
+X3_test, Y3_test = X_test, Y_test
+X4_test, Y4_test = X_test, Y_test
+
+epsa = 0.03
+classifier = KerasClassifier(model = model, clip_values = (0.0, 1.0))
+
+attack_fgsm = FastGradientMethod(estimator = classifier,eps = epsa, eps_step = 0.01)
+x_test_adv2 = (attack_fgsm.generate(X2_test))
+x_test_adv_rez2 = x_test_adv2
+
+loss_test, accuracy_test_2 = model.evaluate(x_test_adv_rez2, Y2_test)
+
+
+attack_pgd = ProjectedGradientDescent(estimator = classifier, eps = epsa, eps_step = 0.01)
+x_test_adv3 = (attack_pgd.generate(X3_test))
+x_test_adv_rez3 = x_test_adv3
+
+loss_test, accuracy_test_3 = model.evaluate(x_test_adv_rez3, Y3_test)
+
+
+attack_JSMA = SaliencyMapMethod(classifier = classifier)
+x_test_adv4 = (attack_JSMA.generate(X4_test))
+x_test_adv_rez4 = x_test_adv4
+
+loss_test, accuracy_test_4 = model.evaluate(x_test_adv_rez4, Y4_test)
+
+print("Ответы:")
+print('Accuracy: {:4.3f}'.format(accuracy_test_1))
+print('Accuracy FGM: {:4.3f}'.format(accuracy_test_2))
+print('Accuracy PGD: {:4.3f}'.format(accuracy_test_3))
+print('Accuracy JSMA: {:4.3f}'.format(accuracy_test_4))
